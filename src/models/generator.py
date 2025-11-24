@@ -666,12 +666,20 @@ class AetheristGenerator(nn.Module):
         # Expand feature tokens for batch
         feature_tokens = self.feature_tokens.expand(batch_size, -1, -1)
         
-        # Process through ViT with style conditioning
-        vit_features = self.vit_backbone(
-            feature_tokens,  # Use learnable tokens instead of image patches
-            style=w,
-            text_embeddings=text_embeddings,
-        )
+        # Process feature tokens through ViT layers directly (skip patch embedding)
+        # Since we're using learnable tokens, we bypass patch embedding
+        x = feature_tokens
+        B = x.shape[0]
+        
+        # Add positional encoding
+        x = self.vit_backbone.pos_encoding(x)
+        
+        # Apply transformer blocks with style conditioning
+        for block in self.vit_backbone.blocks:
+            x = block(x, style=w, text_embeddings=text_embeddings)
+        
+        # Apply final layer norm with style
+        vit_features = self.vit_backbone.norm(x, style=w)
         
         # Generate tri-plane features
         triplanes = self.triplane_head(vit_features)

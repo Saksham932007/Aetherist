@@ -105,16 +105,22 @@ class AdaptiveLayerNorm(nn.Module):
             scale = self.style_to_scale(style)  # (B, num_features)
             shift = self.style_to_shift(style)  # (B, num_features)
             
-            # Reshape to match input dimensions
-            # Add dimensions to match x's shape
-            for _ in range(len(x.shape) - len(style.shape)):
-                scale = scale.unsqueeze(-1)
-                shift = shift.unsqueeze(-1)
-            
-            # Reshape to match normalized_shape
-            new_shape = [scale.size(0)] + list(self.normalized_shape) + [1] * (len(x.shape) - len(self.normalized_shape) - 1)
-            scale = scale.view(new_shape)
-            shift = shift.view(new_shape)
+            # Reshape scale and shift to match normalized dimensions
+            # For input (B, N, D) with normalized_shape (D,), we want (B, 1, D)
+            if len(x.shape) == 3 and len(self.normalized_shape) == 1:
+                # Token sequence case: (B, N, D) -> scale/shift should be (B, 1, D) 
+                scale = scale.unsqueeze(1)  # (B, D) -> (B, 1, D)
+                shift = shift.unsqueeze(1)  # (B, D) -> (B, 1, D)
+            else:
+                # General case: add dimensions to match x's shape
+                for _ in range(len(x.shape) - len(style.shape)):
+                    scale = scale.unsqueeze(-1)
+                    shift = shift.unsqueeze(-1)
+                
+                # Reshape to match normalized_shape
+                new_shape = [scale.size(0)] + list(self.normalized_shape) + [1] * (len(x.shape) - len(self.normalized_shape) - 1)
+                scale = scale.view(new_shape)
+                shift = shift.view(new_shape)
             
             # Apply modulation
             return scale * x_norm + shift
