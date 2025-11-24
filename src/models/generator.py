@@ -346,6 +346,166 @@ class NeuralRenderer(nn.Module):
         }
 
 
+class SuperResolutionUpsampler(nn.Module):
+    """
+    CNN-based super-resolution upsampler.
+    
+    Takes low-resolution neural renders and upsamples them to target resolution
+    while adding fine details and reducing artifacts.
+    """
+    
+    def __init__(
+        self,
+        input_resolution: int = 64,
+        output_resolution: int = 256,
+        input_channels: int = 3,
+        base_channels: int = 64,
+        num_blocks: int = 4,
+        use_spectral_norm: bool = True,
+        activation: str = "leaky_relu",
+    ):
+        """
+        Initialize super-resolution upsampler.
+        
+        Args:
+            input_resolution: Input image resolution
+            output_resolution: Target output resolution  
+            input_channels: Number of input channels (usually 3 for RGB)
+            base_channels: Base number of channels
+            num_blocks: Number of residual blocks
+            use_spectral_norm: Whether to use spectral normalization
+            activation: Activation function
+        """
+        super().__init__()
+        
+        self.input_resolution = input_resolution
+        self.output_resolution = output_resolution
+        self.scale_factor = output_resolution // input_resolution
+        
+        assert output_resolution % input_resolution == 0, \
+            f"Output resolution {output_resolution} must be multiple of input resolution {input_resolution}"
+        
+        # Calculate number of upsampling stages
+        self.num_upsample_stages = int(math.log2(self.scale_factor))
+        
+        # Input convolution
+        self.input_conv = self._make_conv_layer(
+            input_channels, base_channels, 7, 1, 3, use_spectral_norm
+        )
+        
+        # Residual blocks
+        self.residual_blocks = nn.ModuleList()
+        for _ in range(num_blocks):
+            self.residual_blocks.append(
+                ResidualBlock(base_channels, base_channels, use_spectral_norm, activation)
+            )
+        
+        # Upsampling layers
+        self.upsample_layers = nn.ModuleList()
+        current_channels = base_channels
+        
+        for i in range(self.num_upsample_stages):
+            # Halve channels with each upsampling stage
+            out_channels = max(base_channels // (2 ** (i + 1)), base_channels // 8)
+            
+            self.upsample_layers.append(nn.Sequential(
+                nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+                self._make_conv_layer(current_channels, out_channels, 3, 1, 1, use_spectral_norm),
+                self._get_activation(activation),
+            ))
+            current_channels = out_channels
+        
+        # Output convolution
+        self.output_conv = nn.Sequential(
+            self._make_conv_layer(current_channels, input_channels, 7, 1, 3, False),
+            nn.Tanh(),
+        )
+    
+    def _make_conv_layer(self, in_ch, out_ch, kernel_size, stride, padding, use_spectral_norm):
+        """Create convolution layer with optional spectral normalization."""
+        conv = nn.Conv2d(in_ch, out_ch, kernel_size, stride, padding, bias=True)
+        if use_spectral_norm:
+            conv = nn.utils.spectral_norm(conv)
+        return conv
+    
+    def _get_activation(self, activation: str) -> nn.Module:
+        """Get activation function."""
+        if activation == "leaky_relu":
+            return nn.LeakyReLU(0.2, inplace=True)
+        elif activation == "relu":
+            return nn.ReLU(inplace=True)
+        elif activation == "gelu":
+            return nn.GELU()
+        else:
+            raise ValueError(f"Unknown activation: {activation}")
+    
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Forward pass of super-resolution upsampler.
+        
+        Args:
+            x: Input low-resolution images (B, 3, H, W)
+            
+        Returns:
+            Upsampled high-resolution images (B, 3, H*scale, W*scale)
+        """
+        # Input convolution
+        x = self.input_conv(x)
+        x = self._get_activation("leaky_relu")(x)
+        
+        # Residual blocks
+        for block in self.residual_blocks:
+            x = block(x)
+        
+        # Upsampling stages
+        for upsample_layer in self.upsample_layers:
+            x = upsample_layer(x)
+        
+        # Output convolution
+        x = self.output_conv(x)
+        
+        return x
+
+
+class ResidualBlock(nn.Module):
+    """Residual block for super-resolution network."""
+    
+    def __init__(self, channels: int, out_channels: int, use_spectral_norm: bool, activation: str):
+        super().__init__()
+        
+        conv1 = nn.Conv2d(channels, out_channels, 3, 1, 1, bias=True)
+        conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=True)
+        
+        if use_spectral_norm:
+            conv1 = nn.utils.spectral_norm(conv1)
+            conv2 = nn.utils.spectral_norm(conv2)
+        
+        if activation == "leaky_relu":
+            act = nn.LeakyReLU(0.2, inplace=True)
+        elif activation == "relu":
+            act = nn.ReLU(inplace=True)
+        else:
+            act = nn.GELU()
+        
+        self.block = nn.Sequential(
+            conv1,
+            act,
+            conv2,
+        )
+        
+        # Skip connection
+        if channels != out_channels:
+            skip_conv = nn.Conv2d(channels, out_channels, 1, 1, 0, bias=False)
+            if use_spectral_norm:
+                skip_conv = nn.utils.spectral_norm(skip_conv)
+            self.skip = skip_conv
+        else:
+            self.skip = nn.Identity()
+    
+    def forward(self, x: Tensor) -> Tensor:
+        return self.skip(x) + self.block(x)
+
+
 class AetheristGenerator(nn.Module):
     """
     Main generator architecture for Aetherist.
@@ -355,6 +515,7 @@ class AetheristGenerator(nn.Module):
     2. Vision Transformer: Style-conditioned feature generation  
     3. Tri-Plane Head: Project features to 3D tri-plane representation
     4. Neural Renderer: Volumetric ray-marching for 2D image generation
+    5. Super-Resolution: CNN upsampler for final high-resolution output
     """
     
     def __init__(
@@ -460,31 +621,42 @@ class AetheristGenerator(nn.Module):
             num_layers=renderer_layers,
         )
         
+        # Super-resolution upsampler
+        self.sr_upsampler = SuperResolutionUpsampler(
+            input_resolution=64,  # Low-res neural render
+            output_resolution=256,  # High-res final output
+            input_channels=3,
+        )
+        
         # Initialize feature tokens
         nn.init.trunc_normal_(self.feature_tokens, std=0.02)
     
     def forward(
         self,
         z: Tensor,
-        camera_angles: Tensor,
+        camera_matrix: Tensor,
         text_embeddings: Optional[Tensor] = None,
         truncation_psi: float = 1.0,
         return_triplanes: bool = False,
+        render_resolution: int = 64,
+        final_resolution: int = 256,
         **render_kwargs,
     ) -> Dict[str, Tensor]:
         """
-        Forward pass of the generator.
+        Complete forward pass of the generator.
         
         Args:
             z: Input latent codes (B, latent_dim)
-            camera_angles: Camera angles [elevation, azimuth, radius] (B, 3)
+            camera_matrix: Camera transformation matrices (B, 4, 4)
             text_embeddings: Optional text embeddings (B, text_dim)
             truncation_psi: Truncation parameter
             return_triplanes: Whether to return tri-plane features
+            render_resolution: Resolution for neural rendering
+            final_resolution: Final output resolution after super-resolution
             **render_kwargs: Additional rendering arguments
             
         Returns:
-            Dictionary containing generated results
+            Dictionary containing generated results including final images
         """
         batch_size = z.size(0)
         
@@ -504,10 +676,30 @@ class AetheristGenerator(nn.Module):
         # Generate tri-plane features
         triplanes = self.triplane_head(vit_features)
         
+        # Neural rendering at low resolution
+        low_res_image = self.render_image(
+            triplanes=triplanes,
+            camera_matrix=camera_matrix,
+            image_height=render_resolution,
+            image_width=render_resolution,
+            **render_kwargs
+        )
+        
+        # Super-resolution upsampling
+        # Convert to [-1, 1] range for upsampler
+        low_res_normalized = low_res_image * 2.0 - 1.0
+        high_res_image = self.sr_upsampler(low_res_normalized)
+        # Convert back to [0, 1] range
+        high_res_image = (high_res_image + 1.0) / 2.0
+        high_res_image = torch.clamp(high_res_image, 0.0, 1.0)
+        
         # Prepare output dictionary
         output = {
             'w': w,
             'vit_features': vit_features,
+            'low_res_image': low_res_image,
+            'high_res_image': high_res_image,
+            'final_image': high_res_image,  # Alias for compatibility
         }
         
         if return_triplanes:
@@ -521,30 +713,105 @@ class AetheristGenerator(nn.Module):
         camera_matrix: Tensor,
         image_height: int = 256,
         image_width: int = 256,
+        num_samples: int = 64,
+        num_importance_samples: int = 128,
+        near_plane: float = 0.5,
+        far_plane: float = 2.5,
+        white_background: bool = True,
         **render_kwargs,
     ) -> Tensor:
         """
-        Render 2D image from tri-plane features.
+        Render 2D image from tri-plane features using volumetric ray-marching.
         
-        This method will be completed in the neural renderer implementation.
-        For now, it returns a placeholder.
+        Implements the core NeRF rendering equation:
+        C(r) = ∑_{i=1}^{N} T_i * (1 - exp(-σ_i * δ_i)) * c_i
         
         Args:
             triplanes: Tri-plane features
             camera_matrix: Camera transformation matrix (B, 4, 4)
             image_height: Output image height
             image_width: Output image width
+            num_samples: Number of coarse samples per ray
+            num_importance_samples: Number of fine samples per ray
+            near_plane: Near clipping distance
+            far_plane: Far clipping distance
+            white_background: Whether to use white background
             **render_kwargs: Additional rendering arguments
             
         Returns:
             Rendered images (B, 3, H, W)
         """
-        batch_size = list(triplanes.values())[0].size(0)
+        from ..utils.camera import generate_rays, sample_points_along_rays
         
-        # Placeholder: return random images
-        # This will be replaced with actual ray-marching implementation
-        return torch.randn(batch_size, 3, image_height, image_width, 
-                          device=list(triplanes.values())[0].device)
+        batch_size = list(triplanes.values())[0].size(0)
+        device = list(triplanes.values())[0].device
+        
+        # Generate rays from camera
+        ray_origins, ray_directions = generate_rays(
+            camera_matrix, image_height, image_width,
+            fov_degrees=50.0, near=near_plane, far=far_plane
+        )
+        
+        # Sample points along rays (coarse sampling)
+        sample_points, sample_distances = sample_points_along_rays(
+            ray_origins, ray_directions, near_plane, far_plane,
+            num_samples, perturb=self.training
+        )
+        
+        # Flatten for neural network processing
+        B, H, W, N, _ = sample_points.shape
+        points_flat = sample_points.view(B, H * W * N, 3)  # (B, HWN, 3)
+        
+        # Normalize points to [-1, 1] for tri-plane sampling
+        points_normalized = points_flat / far_plane  # Simple normalization
+        points_normalized = torch.clamp(points_normalized, -1, 1)
+        
+        # Prepare view directions
+        viewdirs_flat = ray_directions.unsqueeze(-2).expand(-1, -1, -1, N, -1)
+        viewdirs_flat = viewdirs_flat.contiguous().view(B, H * W * N, 3)
+        viewdirs_flat = F.normalize(viewdirs_flat, dim=-1)
+        
+        # Render colors and densities
+        render_output = self.neural_renderer(
+            points_normalized, viewdirs_flat, triplanes
+        )
+        
+        rgb = render_output['rgb'].view(B, H, W, N, 3)  # (B, H, W, N, 3)
+        density = render_output['density'].view(B, H, W, N, 1)  # (B, H, W, N, 1)
+        
+        # Compute distances between samples
+        dists = sample_distances[..., 1:] - sample_distances[..., :-1]  # (B, H, W, N-1)
+        dists = torch.cat([
+            dists,
+            torch.full_like(dists[..., :1], 1e10)  # Infinite distance for last sample
+        ], dim=-1)
+        
+        # Volume rendering equation
+        # α = 1 - exp(-σ * δ)
+        alpha = 1.0 - torch.exp(-density.squeeze(-1) * dists)  # (B, H, W, N)
+        
+        # Transmittance T = exp(-∑σδ) = ∏(1-α)
+        # Use cumprod for efficient computation
+        transmittance = torch.cumprod(torch.cat([
+            torch.ones_like(alpha[..., :1]),
+            1.0 - alpha[..., :-1]
+        ], dim=-1), dim=-1)
+        
+        # Weights for color composition
+        weights = transmittance * alpha  # (B, H, W, N)
+        
+        # Composite colors
+        rendered_rgb = torch.sum(weights.unsqueeze(-1) * rgb, dim=-2)  # (B, H, W, 3)
+        
+        # Add white background if specified
+        if white_background:
+            acc_transmittance = torch.sum(weights, dim=-1, keepdim=True)  # (B, H, W, 1)
+            rendered_rgb = rendered_rgb + (1.0 - acc_transmittance)
+        
+        # Convert to image format (B, 3, H, W)
+        rendered_image = rendered_rgb.permute(0, 3, 1, 2)
+        
+        return torch.clamp(rendered_image, 0.0, 1.0)
 
 
 def test_generator_components():
@@ -592,7 +859,23 @@ def test_generator_components():
     assert render_output['rgb'].shape == (batch_size, num_points, 3)
     assert render_output['density'].shape == (batch_size, num_points, 1)
     
-    print("Testing Full Generator...")
+    print("Testing Super-Resolution Upsampler...")
+    
+    # Test super-resolution upsampler
+    upsampler = SuperResolutionUpsampler(
+        input_resolution=64,
+        output_resolution=256,
+        input_channels=3,
+    ).to(device)
+    
+    low_res_img = torch.randn(batch_size, 3, 64, 64, device=device)
+    high_res_img = upsampler(low_res_img)
+    
+    print(f"Upsampler input: {low_res_img.shape}")
+    print(f"Upsampler output: {high_res_img.shape}")
+    assert high_res_img.shape == (batch_size, 3, 256, 256)
+    
+    print("Testing Full Generator Pipeline...")
     
     # Test full generator
     generator = AetheristGenerator(
@@ -603,19 +886,42 @@ def test_generator_components():
     ).to(device)
     
     z = torch.randn(batch_size, latent_dim, device=device)
-    camera_angles = torch.randn(batch_size, 3, device=device)
     
-    output = generator(z, camera_angles, return_triplanes=True)
+    # Create dummy camera matrices
+    from ..utils.camera import sample_camera_poses, look_at_matrix, perspective_projection_matrix
+    
+    # Sample camera poses
+    eye_positions, view_matrices, camera_angles = sample_camera_poses(
+        batch_size, device=device
+    )
+    
+    # Create projection matrices
+    proj_matrices = perspective_projection_matrix(
+        fov_degrees=torch.tensor([50.0] * batch_size),
+        aspect_ratio=torch.tensor([1.0] * batch_size),
+    ).to(device)
+    
+    # Combine view and projection matrices
+    camera_matrices = torch.bmm(proj_matrices, view_matrices)
+    
+    output = generator(z, camera_matrices, return_triplanes=True)
     
     print(f"Generator input: {z.shape}")
     print(f"Style vectors: {output['w'].shape}")
     print(f"ViT features: {output['vit_features'].shape}")
+    print(f"Low-res image: {output['low_res_image'].shape}")
+    print(f"High-res image: {output['high_res_image'].shape}")
+    
+    # Verify output shapes
+    assert output['low_res_image'].shape == (batch_size, 3, 64, 64)
+    assert output['high_res_image'].shape == (batch_size, 3, 256, 256)
     
     triplanes = output['triplanes']
     for name, plane in triplanes.items():
         print(f"{name}: {plane.shape}")
     
     print("All generator component tests passed!")
+    print("✅ Complete Aetherist Generator pipeline working!")
 
 
 if __name__ == "__main__":
