@@ -18,8 +18,9 @@ matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-from src.training.training_loop import AetheristTrainer, create_trainer_from_config
-from src.training.trainer import GANLosses
+from src.training.training_loop import AetheristTrainer
+from src.models.generator import AetheristGenerator  
+from src.models.discriminator import AetheristDiscriminator
 
 
 class SyntheticDataset(Dataset):
@@ -126,40 +127,42 @@ def test_training_integration():
     print()
     
     # Create trainer with smaller models for testing
-    print("Creating trainer...")
-    generator_config = {
-        'latent_dim': 256,
-        'style_dim': 256,
-        'vit_layers': 4,           # Smaller for testing
-        'vit_dim': 256,            # Smaller for testing
-        'triplane_resolution': 32,  # Smaller for testing
-        'triplane_channels': 16,   # Smaller for testing
-    }
+    print("Creating models and trainer...")
     
-    discriminator_config = {
-        'input_size': image_size,
-        'input_channels': 3,
-        'base_channels': 32,       # Smaller for testing
-        'feature_dim': 128,        # Smaller for testing
-        'use_multiscale': False,   # Disable for testing
-        'use_consistency_branch': True,
-        'num_views': 2,
-    }
+    # Create models directly
+    generator = AetheristGenerator(
+        latent_dim=256,
+        vit_dim=256,
+        vit_layers=4,
+        triplane_resolution=32,
+        triplane_channels=16,
+    ).to(device)
+    
+    discriminator = AetheristDiscriminator(
+        input_size=image_size,
+        input_channels=3,
+        base_channels=32,
+        feature_dim=128,
+        use_multiscale=False,
+        use_consistency_branch=False,  # Disable for single-view testing
+        num_views=1,                   # Single view for testing
+    ).to(device)
     
     trainer = AetheristTrainer(
-        generator_config=generator_config,
-        discriminator_config=discriminator_config,
-        batch_size=batch_size,
-        learning_rate_g=2e-4,
-        learning_rate_d=2e-4,
-        # Faster logging for testing
-        log_interval=2,
-        save_interval=10,
-        sample_interval=5,
-        # Use test directories
-        checkpoint_dir=str(output_dir / "checkpoints"),
-        sample_dir=str(output_dir / "samples"),
+        generator=generator,
+        discriminator=discriminator,
         device=device,
+        adversarial_loss_type="non_saturating",
+        lambda_perceptual=0.1,
+        lambda_consistency=0.05,
+        lambda_r1=10.0,
+        generator_lr=2e-4,
+        discriminator_lr=2e-4,
+        num_views=1,               # Single view for testing
+        view_probability=0.0,      # Disable multi-view
+        log_every=2,
+        save_every=10,
+        sample_every=5,
     )
     
     print("Trainer created successfully!")
@@ -170,7 +173,9 @@ def test_training_integration():
     trainer.generator.train()
     trainer.discriminator.train()
     
-    step_metrics = trainer.train_step(sample_batch)
+    # Wrap the batch in the expected format
+    batch_dict = {'images': sample_batch}
+    step_metrics = trainer.train_step(batch_dict)
     
     print("Single step metrics:")
     for key, value in step_metrics.items():
@@ -183,7 +188,7 @@ def test_training_integration():
     
     # Generate fake data for loss testing
     with torch.no_grad():
-        z = torch.randn(batch_size, generator_config['latent_dim'], device=device)
+        z = torch.randn(batch_size, 256, device=device)  # latent_dim=256
         
         # Sample camera poses
         from src.utils.camera import sample_camera_poses, perspective_projection_matrix
@@ -249,10 +254,22 @@ def test_training_integration():
         
         # Create new trainer
         trainer2 = AetheristTrainer(
-            generator_config=generator_config,
-            discriminator_config=discriminator_config,
-            batch_size=batch_size,
-            checkpoint_dir=str(checkpoint_dir),
+            generator=AetheristGenerator(
+                latent_dim=256,
+                vit_dim=256,
+                vit_layers=4,
+                triplane_resolution=32,
+                triplane_channels=16,
+            ).to(device),
+            discriminator=AetheristDiscriminator(
+                input_size=image_size,
+                input_channels=3,
+                base_channels=32,
+                feature_dim=128,
+                use_multiscale=False,
+                use_consistency_branch=False,  # Disable for single-view testing  
+                num_views=1,                   # Single view for testing
+            ).to(device),
             device=device,
         )
         
@@ -282,7 +299,7 @@ def test_training_integration():
     # Check 1: Models can forward pass
     try:
         with torch.no_grad():
-            z_test = torch.randn(2, generator_config['latent_dim'], device=device)
+            z_test = torch.randn(2, 256, device=device)  # latent_dim=256
             camera_test = torch.eye(4, device=device).unsqueeze(0).repeat(2, 1, 1)
             gen_output = trainer.generator(z_test, camera_test)
             disc_output = trainer.discriminator(gen_output['high_res_image'])
@@ -294,7 +311,8 @@ def test_training_integration():
     # Check 2: Training step completes
     try:
         test_batch = next(iter(dataloader))
-        step_metrics = trainer.train_step(test_batch)
+        test_batch_dict = {'images': test_batch}
+        step_metrics = trainer.train_step(test_batch_dict)
         assert len(step_metrics) > 0
         print("✅ Training step working")
         checks_passed += 1
@@ -372,34 +390,36 @@ def benchmark_training_speed():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # Small models for speed testing
-    generator_config = {
-        'latent_dim': 256,
-        'vit_layers': 2,
-        'vit_dim': 128,
-        'triplane_resolution': 16,
-        'triplane_channels': 8,
-    }
+    generator = AetheristGenerator(
+        latent_dim=256,
+        vit_dim=128,
+        vit_layers=2,
+        triplane_resolution=16,
+        triplane_channels=8,
+    ).to(device)
     
-    discriminator_config = {
-        'input_size': 64,
-        'base_channels': 16,
-        'feature_dim': 64,
-        'use_multiscale': False,
-        'use_consistency_branch': False,
-    }
+    discriminator = AetheristDiscriminator(
+        input_size=64,
+        input_channels=3,
+        base_channels=16,
+        feature_dim=64,
+        use_multiscale=False,
+        use_consistency_branch=False,
+        num_views=2,
+    ).to(device)
     
     trainer = AetheristTrainer(
-        generator_config=generator_config,
-        discriminator_config=discriminator_config,
-        batch_size=4,
+        generator=generator,
+        discriminator=discriminator,
         device=device,
     )
     
     # Create test batch
     test_batch = torch.randn(4, 3, 64, 64, device=device)
+    test_batch_dict = {'images': test_batch}
     
     # Warmup
-    trainer.train_step(test_batch)
+    trainer.train_step(test_batch_dict)
     
     # Benchmark
     import time
@@ -410,7 +430,7 @@ def benchmark_training_speed():
     num_steps = 10
     
     for _ in range(num_steps):
-        trainer.train_step(test_batch)
+        trainer.train_step(test_batch_dict)
     
     if torch.cuda.is_available():
         torch.cuda.synchronize()
