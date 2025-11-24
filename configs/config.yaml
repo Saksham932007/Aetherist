@@ -1,0 +1,112 @@
+# Aetherist Configuration
+# Hydra configuration for Hybrid 3D-ViT-GAN training
+
+defaults:
+  - _self_
+
+# Model Architecture
+model:
+  # Generator parameters
+  generator:
+    latent_dim: 512
+    mapping_layers: 8
+    mapping_hidden: 512
+    vit_layers: 12
+    vit_heads: 16
+    vit_dim: 1024
+    vit_mlp_ratio: 4
+    triplane_resolution: 256
+    triplane_channels: 32
+    use_siren: true
+    siren_omega: 30.0
+    
+  # Discriminator parameters  
+  discriminator:
+    vit_layers: 6
+    vit_heads: 8
+    vit_dim: 512
+    patch_size: 16
+    use_spectral_norm: true
+    
+  # Renderer parameters
+  renderer:
+    ray_samples: 64
+    ray_importance_samples: 128
+    near_plane: 0.5
+    far_plane: 2.5
+    white_background: true
+
+# Training Configuration
+training:
+  # Optimization
+  batch_size: 4
+  generator_lr: 0.0002
+  discriminator_lr: 0.0002
+  beta1: 0.0
+  beta2: 0.99
+  weight_decay: 0.0001
+  
+  # Training dynamics
+  total_steps: 1000000
+  discriminator_steps: 1
+  generator_steps: 1
+  gradient_accumulation_steps: 1
+  max_grad_norm: 1.0
+  
+  # EMA
+  ema_beta: 0.9999
+  ema_start_step: 10000
+  
+  # Loss weights
+  adversarial_weight: 1.0
+  r1_weight: 10.0
+  pose_weight: 1.0
+  perceptual_weight: 0.1
+
+# Data Configuration
+data:
+  dataset_path: "/path/to/dataset"
+  resolution: 256
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 2
+  
+  # Camera sampling
+  camera_fov: 50.0
+  camera_radius: 1.2
+  camera_elevation_range: [-15, 15]  # degrees
+  camera_azimuth_range: [0, 360]    # degrees
+
+# Logging and Checkpointing
+logging:
+  project_name: "aetherist"
+  experiment_name: "3d_vit_gan"
+  log_every: 100
+  save_every: 5000
+  sample_every: 1000
+  num_samples: 16
+  
+  # WandB configuration
+  wandb:
+    entity: null  # Set your wandB entity
+    tags: ["3d-gan", "vit", "nerf", "triplane"]
+    notes: "Hybrid 3D-ViT-GAN training"
+
+# Hardware Configuration
+hardware:
+  device: "cuda"
+  mixed_precision: true
+  compile_model: false  # Set to true for PyTorch 2.0+ compilation
+  distributed: false
+  world_size: 1
+  local_rank: 0
+
+# Paths
+paths:
+  checkpoint_dir: "./checkpoints"
+  sample_dir: "./samples"
+  log_dir: "./logs"
+  
+# Reproducibility
+seed: 42
+deterministic: false
