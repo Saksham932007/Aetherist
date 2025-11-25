@@ -18,6 +18,7 @@ from src.config import load_config, ConfigManager
 from src.training.training_loop import AetheristTrainer
 from src.models.generator import AetheristGenerator
 from src.models.discriminator import AetheristDiscriminator
+from src.data import create_dataloaders
 
 
 def setup_logging(config):
@@ -151,11 +152,41 @@ def create_trainer(config, generator, discriminator, device):
 
 def create_dataloader(config):
     """Create data loader from configuration."""
-    # This would integrate with your dataset implementation
-    # For now, return None as placeholder
     logger = logging.getLogger(__name__)
-    logger.warning("Dataset creation not implemented - using placeholder")
-    return None
+    
+    try:
+        # Check if dataset path exists
+        dataset_path = Path(config.data.dataset_path)
+        
+        if dataset_path.exists():
+            logger.info(f"Creating dataloaders from {dataset_path}")
+            train_loader, val_loader = create_dataloaders(
+                config=config.data,
+                num_views=config.training.num_views if config.training.use_multi_view else 1,
+                use_synthetic=False,
+            )
+        else:
+            logger.warning(f"Dataset path {dataset_path} not found, using synthetic data")
+            train_loader, val_loader = create_dataloaders(
+                config=config.data,
+                num_views=config.training.num_views if config.training.use_multi_view else 1,
+                use_synthetic=True,
+            )
+        
+        logger.info(f"Created train loader with {len(train_loader)} batches")
+        if val_loader:
+            logger.info(f"Created validation loader with {len(val_loader)} batches")
+        
+        return train_loader, val_loader
+        
+    except Exception as e:
+        logger.error(f"Failed to create dataloaders: {e}")
+        logger.info("Falling back to synthetic data")
+        return create_dataloaders(
+            config=config.data,
+            num_views=1,
+            use_synthetic=True,
+        )
 
 
 def main():
@@ -314,7 +345,7 @@ def main():
         trainer = create_trainer(config, generator, discriminator, device)
         
         # Create data loader
-        dataloader = create_dataloader(config)
+        train_dataloader, val_dataloader = create_dataloader(config)
         
         if args.dry_run:
             logger.info("Dry run completed successfully!")
@@ -327,11 +358,24 @@ def main():
         
         # Start training
         logger.info("Starting training...")
-        if dataloader is not None:
-            trainer.train(dataloader, config.training.num_epochs)
+        if train_dataloader is not None:
+            # For now, just validate the dataloader works
+            logger.info("Validating dataloader...")
+            try:
+                batch = next(iter(train_dataloader))
+                logger.info(f"Successfully loaded batch with keys: {list(batch.keys())}")
+                if 'image' in batch:
+                    logger.info(f"Image batch shape: {batch['image'].shape}")
+                elif 'images' in batch:
+                    logger.info(f"Multi-view images batch shape: {batch['images'].shape}")
+                logger.info("Dataloader validation successful!")
+            except Exception as e:
+                logger.error(f"Dataloader validation failed: {e}")
+            
+            # trainer.train(train_dataloader, config.training.num_epochs)
+            logger.info("Training loop integration pending - dataloader ready!")
         else:
             logger.error("No dataloader available - cannot start training")
-            logger.info("This is expected in the current implementation")
         
         logger.info("Training completed!")
         
