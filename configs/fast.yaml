@@ -1,0 +1,145 @@
+# Fast Training Configuration
+# Optimized for quick prototyping and testing
+
+model:
+  # Smaller model for speed
+  latent_dim: 128
+  vit_dim: 128
+  vit_layers: 4
+  vit_heads: 4
+  vit_mlp_ratio: 2.0
+  triplane_resolution: 32
+  triplane_channels: 16
+  
+  # Fewer ray samples
+  ray_samples_coarse: 32
+  ray_samples_fine: 32
+  density_noise: 0.0
+  
+  # Minimal super-resolution
+  sr_hidden_dim: 64
+  sr_num_layers: 2
+  
+  # Lightweight discriminator
+  discriminator_base_channels: 32
+  discriminator_feature_dim: 128
+  use_multiscale_discriminator: false
+  use_consistency_branch: false
+  num_views_consistency: 1
+
+training:
+  # Fast training settings
+  batch_size: 64
+  num_epochs: 100
+  learning_rate_g: 0.0005
+  learning_rate_d: 0.0005
+  beta1: 0.5
+  beta2: 0.999
+  weight_decay: 0.0
+  
+  # Simplified losses
+  lambda_adversarial: 1.0
+  lambda_perceptual: 0.05
+  lambda_consistency: 0.0
+  lambda_r1: 5.0
+  
+  # Fast scheduling
+  warmup_epochs: 2
+  scheduler_type: "step"
+  scheduler_gamma: 0.9
+  scheduler_step_size: 20
+  
+  # Single-view training
+  use_multi_view: false
+  num_views: 1
+  view_probability: 0.0
+  
+  # Minimal regularization
+  gradient_clip_norm: 5.0
+  ema_decay: 0.99
+  use_ema: false
+  
+  # No progressive training
+  progressive_training: false
+  progressive_epochs: []
+  progressive_resolutions: []
+  
+  # Frequent logging for monitoring
+  log_every: 10
+  save_every: 200
+  sample_every: 50
+  validate_every: 100
+  max_checkpoints: 3
+
+data:
+  # Low resolution for speed
+  dataset_path: "data/"
+  image_size: 128
+  num_workers: 4
+  pin_memory: true
+  shuffle: true
+  drop_last: true
+  
+  # No augmentation for speed
+  use_augmentation: false
+  horizontal_flip: false
+  color_jitter: false
+  rotation_degrees: 0
+  
+  # Fixed camera for simplicity
+  camera_radius_range: [2.0, 2.0]
+  camera_elevation_range: [0, 0]
+  camera_azimuth_range: [0, 0]
+  
+  # Small validation set
+  val_split: 0.05
+  val_seed: 42
+
+inference:
+  # Fast inference
+  device: "auto"
+  half_precision: true
+  batch_size: 16
+  max_batch_size: 32
+  
+  # Quick generation
+  default_num_samples: 4
+  default_resolution: 128
+  default_seed: 42
+  
+  # Fixed camera
+  default_radius: 2.0
+  default_elevation: 0.0
+  default_azimuth: 0.0
+  
+  # Minimal outputs
+  output_format: "JPEG"
+  save_latents: false
+  save_cameras: false
+  save_metadata: false
+  
+  # Local web interface
+  web_host: "127.0.0.1"
+  web_port: 7860
+  web_share: false
+
+experiment:
+  name: "aetherist_fast"
+  output_dir: "experiments/"
+  
+  # Minimal logging
+  use_wandb: false
+  wandb_project: "aetherist-fast"
+  wandb_entity: null
+  log_level: "WARNING"
+  
+  checkpoint_dir: "checkpoints/"
+  sample_dir: "samples/"
+  log_dir: "logs/"
+  
+  seed: 42
+  deterministic: false
+  
+  device: "auto"
+  mixed_precision: true
+  compile_model: false

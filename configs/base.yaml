@@ -1,0 +1,149 @@
+# Aetherist Base Configuration
+# Default settings for training and inference
+
+model:
+  # Generator architecture
+  latent_dim: 256
+  vit_dim: 256
+  vit_layers: 8
+  vit_heads: 8
+  vit_mlp_ratio: 4.0
+  triplane_resolution: 64
+  triplane_channels: 32
+  
+  # Neural renderer
+  ray_samples_coarse: 64
+  ray_samples_fine: 64
+  density_noise: 0.0
+  
+  # Super-resolution
+  sr_hidden_dim: 128
+  sr_num_layers: 4
+  
+  # Discriminator
+  discriminator_base_channels: 64
+  discriminator_feature_dim: 256
+  use_multiscale_discriminator: true
+  use_consistency_branch: true
+  num_views_consistency: 2
+
+training:
+  # Basic settings
+  batch_size: 32
+  num_epochs: 500
+  learning_rate_g: 0.0002
+  learning_rate_d: 0.0002
+  beta1: 0.0
+  beta2: 0.99
+  weight_decay: 0.0
+  
+  # Loss weights
+  lambda_adversarial: 1.0
+  lambda_perceptual: 0.1
+  lambda_consistency: 0.05
+  lambda_r1: 10.0
+  
+  # Learning rate scheduling
+  warmup_epochs: 10
+  scheduler_type: "cosine"  # cosine, step, linear
+  scheduler_gamma: 0.95
+  scheduler_step_size: 50
+  
+  # Multi-view training
+  use_multi_view: true
+  num_views: 2
+  view_probability: 0.5
+  
+  # Regularization
+  gradient_clip_norm: 1.0
+  ema_decay: 0.999
+  use_ema: true
+  
+  # Progressive training
+  progressive_training: false
+  progressive_epochs: [100, 200, 300]
+  progressive_resolutions: [64, 128, 256]
+  
+  # Logging intervals
+  log_every: 50
+  save_every: 1000
+  sample_every: 500
+  validate_every: 2000
+  max_checkpoints: 5
+
+data:
+  # Dataset configuration
+  dataset_path: "data/"
+  image_size: 256
+  num_workers: 8
+  pin_memory: true
+  shuffle: true
+  drop_last: true
+  
+  # Data augmentation
+  use_augmentation: true
+  horizontal_flip: true
+  color_jitter: false
+  rotation_degrees: 0
+  
+  # Camera sampling ranges
+  camera_radius_range: [1.5, 2.5]
+  camera_elevation_range: [-15, 45]
+  camera_azimuth_range: [-180, 180]
+  
+  # Validation split
+  val_split: 0.1
+  val_seed: 42
+
+inference:
+  # Hardware settings
+  device: "auto"
+  half_precision: true
+  batch_size: 8
+  max_batch_size: 16
+  
+  # Generation defaults
+  default_num_samples: 4
+  default_resolution: 256
+  default_seed: null
+  
+  # Camera defaults
+  default_radius: 2.0
+  default_elevation: 15.0
+  default_azimuth: 0.0
+  
+  # Output settings
+  output_format: "PNG"
+  save_latents: false
+  save_cameras: false
+  save_metadata: true
+  
+  # Web interface
+  web_host: "127.0.0.1"
+  web_port: 7860
+  web_share: false
+
+experiment:
+  # Experiment identification
+  name: "aetherist_base"
+  output_dir: "experiments/"
+  
+  # Logging and tracking
+  use_wandb: true
+  wandb_project: "aetherist"
+  wandb_entity: null
+  log_level: "INFO"
+  
+  # Directory structure
+  checkpoint_dir: "checkpoints/"
+  sample_dir: "samples/"
+  log_dir: "logs/"
+  
+  # Reproducibility
+  seed: 42
+  deterministic: false
+  
+  # Hardware optimization
+  device: "auto"
+  mixed_precision: true
+  compile_model: false

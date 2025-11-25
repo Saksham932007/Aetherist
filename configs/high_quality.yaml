@@ -1,0 +1,145 @@
+# High-Quality Training Configuration
+# Optimized for maximum quality results
+
+model:
+  # Larger model for better quality
+  latent_dim: 512
+  vit_dim: 512
+  vit_layers: 12
+  vit_heads: 16
+  vit_mlp_ratio: 4.0
+  triplane_resolution: 128
+  triplane_channels: 64
+  
+  # Higher quality neural rendering
+  ray_samples_coarse: 96
+  ray_samples_fine: 96
+  density_noise: 0.0
+  
+  # Enhanced super-resolution
+  sr_hidden_dim: 256
+  sr_num_layers: 6
+  
+  # Stronger discriminator
+  discriminator_base_channels: 128
+  discriminator_feature_dim: 512
+  use_multiscale_discriminator: true
+  use_consistency_branch: true
+  num_views_consistency: 4
+
+training:
+  # Conservative training for stability
+  batch_size: 16  # Smaller batch for larger model
+  num_epochs: 1000
+  learning_rate_g: 0.0001
+  learning_rate_d: 0.0001
+  beta1: 0.0
+  beta2: 0.999
+  weight_decay: 0.0001
+  
+  # Balanced loss weights
+  lambda_adversarial: 1.0
+  lambda_perceptual: 0.2
+  lambda_consistency: 0.1
+  lambda_r1: 10.0
+  
+  # Careful scheduling
+  warmup_epochs: 50
+  scheduler_type: "cosine"
+  scheduler_gamma: 0.99
+  scheduler_step_size: 100
+  
+  # Enhanced multi-view training
+  use_multi_view: true
+  num_views: 4
+  view_probability: 0.7
+  
+  # Strong regularization
+  gradient_clip_norm: 0.5
+  ema_decay: 0.9995
+  use_ema: true
+  
+  # Progressive training enabled
+  progressive_training: true
+  progressive_epochs: [200, 400, 600, 800]
+  progressive_resolutions: [64, 128, 256, 512]
+  
+  # Frequent monitoring
+  log_every: 25
+  save_every: 500
+  sample_every: 250
+  validate_every: 1000
+  max_checkpoints: 10
+
+data:
+  # High-resolution data
+  dataset_path: "data/"
+  image_size: 512
+  num_workers: 12
+  pin_memory: true
+  shuffle: true
+  drop_last: true
+  
+  # Minimal augmentation for quality
+  use_augmentation: true
+  horizontal_flip: true
+  color_jitter: false
+  rotation_degrees: 5
+  
+  # Wider camera sampling
+  camera_radius_range: [1.2, 3.0]
+  camera_elevation_range: [-30, 60]
+  camera_azimuth_range: [-180, 180]
+  
+  # Larger validation set
+  val_split: 0.15
+  val_seed: 42
+
+inference:
+  # Optimized for quality
+  device: "auto"
+  half_precision: false  # Full precision for quality
+  batch_size: 4
+  max_batch_size: 8
+  
+  # High-quality defaults
+  default_num_samples: 8
+  default_resolution: 512
+  default_seed: null
+  
+  # Centered camera
+  default_radius: 2.0
+  default_elevation: 0.0
+  default_azimuth: 0.0
+  
+  # High-quality outputs
+  output_format: "PNG"
+  save_latents: true
+  save_cameras: true
+  save_metadata: true
+  
+  # Web interface
+  web_host: "0.0.0.0"
+  web_port: 7860
+  web_share: true
+
+experiment:
+  name: "aetherist_hq"
+  output_dir: "experiments/"
+  
+  # Comprehensive logging
+  use_wandb: true
+  wandb_project: "aetherist-hq"
+  wandb_entity: null
+  log_level: "DEBUG"
+  
+  checkpoint_dir: "checkpoints/"
+  sample_dir: "samples/"
+  log_dir: "logs/"
+  
+  seed: 42
+  deterministic: true
+  
+  device: "auto"
+  mixed_precision: false  # Full precision
+  compile_model: true

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Command-line interface for Aetherist inference.
+Now supports YAML configuration files for consistent settings.
 """
 
 import argparse
@@ -12,10 +13,11 @@ import torch
 import numpy as np
 
 # Add project root to path
-project_root = Path(__file__).parent.parent.parent
+project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.inference.inference_pipeline import AetheristInferencePipeline, BatchInferencePipeline
+from src.config import load_config, ConfigManager
 
 
 def setup_logging(verbose: bool = False):
@@ -31,6 +33,14 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate images using trained Aetherist model",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    
+    # Configuration arguments
+    parser.add_argument(
+        "--config", "-cfg",
+        type=str,
+        default=None,
+        help="Path to YAML configuration file"
     )
     
     # Model arguments
@@ -173,6 +183,23 @@ def main():
     logger = logging.getLogger(__name__)
     
     try:
+        # Load configuration if provided
+        if args.config:
+            logger.info(f"Loading configuration from {args.config}")
+            config = load_config(args.config)
+            
+            # Use config defaults if command line args not specified
+            if args.num_samples == 4:  # Default value
+                args.num_samples = config.inference.default_num_samples
+            if args.resolution is None:
+                args.resolution = config.inference.default_resolution
+            if args.seed is None:
+                args.seed = config.inference.default_seed
+            if args.device == "auto":
+                args.device = config.inference.device
+            if not args.half_precision and config.inference.half_precision:
+                args.half_precision = True
+        
         # Initialize inference pipeline
         logger.info("Initializing inference pipeline...")
         pipeline = AetheristInferencePipeline(

@@ -1,0 +1,86 @@
+# Inference-Only Configuration
+# Optimized settings for model inference and generation
+
+model:
+  # Model architecture (must match trained model)
+  latent_dim: 256
+  vit_dim: 256
+  vit_layers: 8
+  vit_heads: 8
+  vit_mlp_ratio: 4.0
+  triplane_resolution: 64
+  triplane_channels: 32
+  
+  # Neural renderer settings
+  ray_samples_coarse: 64
+  ray_samples_fine: 64
+  density_noise: 0.0
+  
+  # Super-resolution
+  sr_hidden_dim: 128
+  sr_num_layers: 4
+
+# Training section (unused for inference but kept for compatibility)
+training:
+  batch_size: 32
+  num_epochs: 500
+  learning_rate_g: 0.0002
+  learning_rate_d: 0.0002
+
+# Data section (unused for inference)
+data:
+  dataset_path: "data/"
+  image_size: 256
+
+inference:
+  # Hardware optimization for inference
+  device: "auto"
+  half_precision: true
+  batch_size: 8
+  max_batch_size: 16
+  
+  # Generation defaults for high quality
+  default_num_samples: 8
+  default_resolution: 512
+  default_seed: null
+  
+  # Camera defaults for pleasing views
+  default_radius: 2.2
+  default_elevation: 20.0
+  default_azimuth: 30.0
+  
+  # Output settings for production
+  output_format: "PNG"
+  save_latents: true
+  save_cameras: true
+  save_metadata: true
+  
+  # Web interface settings
+  web_host: "0.0.0.0"
+  web_port: 7860
+  web_share: true
+
+experiment:
+  # Inference experiment settings
+  name: "aetherist_inference"
+  output_dir: "generated/"
+  
+  # Minimal logging for inference
+  use_wandb: false
+  wandb_project: null
+  wandb_entity: null
+  log_level: "INFO"
+  
+  # Output directories
+  checkpoint_dir: "checkpoints/"
+  sample_dir: "generated/samples/"
+  log_dir: "generated/logs/"
+  
+  # Reproducibility
+  seed: 42
+  deterministic: false
+  
+  # Hardware settings
+  device: "auto"
+  mixed_precision: false
+  compile_model: false
