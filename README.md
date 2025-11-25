@@ -1,53 +1,281 @@
-# Aetherist - 3D-Aware Image Generation
+# Aetherist 🎨
 
-Aetherist is a state-of-the-art generative adversarial network (GAN) that produces high-quality images with 3D consistency. It combines neural radiance fields (NeRF) with advanced transformer architectures to generate photorealistic images from different viewpoints.
+**A comprehensive framework for high-resolution artistic image generation using advanced GANs with attention mechanisms and progressive training.**
+
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ## 🌟 Features
 
-- **3D-Aware Generation**: Produces images with consistent 3D geometry across different viewpoints
-- **High Quality**: Generates photorealistic images at high resolutions
-- **Neural Rendering**: Uses volumetric ray marching for realistic lighting and shadows
-- **Transformer Backbone**: Leverages Vision Transformer (ViT) architecture for superior feature learning
-- **Super-Resolution**: Built-in upsampling for crisp, detailed outputs
-- **Multi-View Consistency**: Ensures geometric coherence across different camera angles
+- **🏗️ Advanced GAN Architecture**: Progressive training with attention mechanisms and style injection
+- **🎯 Multi-Scale Generation**: Support for resolutions from 64x64 to 1024x1024 and beyond
+- **🎨 Artistic Style Control**: Fine-grained control over style, content, and artistic attributes
+- **📊 Comprehensive Training**: Advanced loss functions, regularization, and training strategies
+- **🚀 Production Ready**: Complete deployment suite with optimization and monitoring tools
+- **🔍 Advanced Analytics**: Real-time monitoring, model analysis, and performance tracking
+- **⚡ High Performance**: Optimized for both training and inference with batch processing support
 
 ## 🏗️ Architecture
 
 ### Core Components
 
-1. **Generator Pipeline**:
-   - ViT Backbone: Transforms latent codes into rich feature representations
-   - Triplane Decoder: Converts features into 3D triplane representations
-   - Neural Renderer: Ray marching through triplane for volumetric rendering
-   - Super-Resolution: CNN upsampler for final high-resolution output
+- **Progressive Generator**: Multi-scale generation with attention and style injection
+- **Progressive Discriminator**: Multi-scale discrimination with feature matching
+- **Attention Mechanisms**: Self-attention and cross-attention for improved quality
+- **Style Injection**: Advanced style control and manipulation
+- **Progressive Training**: Stable training from low to high resolutions
 
-2. **Discriminator**:
-   - Dual-branch architecture for image quality and 3D consistency evaluation
-   - Spectral normalization for training stability
-   - Multi-scale analysis for detailed feedback
+### Advanced System Utilities (New!)
 
-3. **Training System**:
-   - Comprehensive GAN losses with R1 gradient penalty
-   - Perceptual loss using VGG features
-   - Multi-view consistency loss for 3D awareness
-   - Advanced learning rate scheduling
+- **🖥️ System Monitoring**: Real-time resource and performance monitoring
+- **📊 Model Analysis**: Comprehensive architecture and performance analysis
+- **⚙️ Batch Processing**: High-performance batch operations for large-scale tasks
+- **🌐 Web Dashboard**: Real-time monitoring dashboard with interactive visualizations
+- **🚀 Deployment Tools**: Production-ready deployment automation and optimization
 
-## 📊 Model Statistics
-
-- **Generator**: 112M parameters
-- **Discriminator**: 19.3M parameters
-- **Triplane Resolution**: 64×64 (configurable)
-- **Output Resolution**: Up to 1024×1024
-- **Latent Dimension**: 256
+---
 
 ## 🚀 Quick Start
 
-### Installation
+### Prerequisites
 
 ```bash
-git clone https://github.com/Saksham932007/Aetherist.git
-cd Aetherist
+# Python 3.9 or higher
+# CUDA-capable GPU (recommended)
+# 16GB+ RAM recommended
+```
+
+### Installation
+
+1. **Clone the repository**:
+```bash
+git clone https://github.com/yourusername/aetherist.git
+cd aetherist
+```
+
+2. **Install dependencies**:
+```bash
 pip install -r requirements.txt
+```
+
+3. **Setup configuration**:
+```bash
+cp configs/train_config_template.yaml configs/train_config.yaml
+# Edit configuration as needed
+```
+
+### Basic Usage
+
+#### Training
+
+```bash
+# Start training with default configuration
+python scripts/train.py --config configs/train_config.yaml
+
+# Resume from checkpoint
+python scripts/train.py --config configs/train_config.yaml --resume checkpoints/latest.pt
+
+# Monitor training with web dashboard
+python scripts/monitoring_dashboard.py
+```
+
+#### Generation
+
+```bash
+# Generate samples
+python scripts/generate.py --checkpoint checkpoints/best.pt --num-samples 16
+
+# Batch generation for large-scale operations
+python scripts/batch_generate.py --checkpoint checkpoints/best.pt --num-samples 10000 --batch-size 32
+```
+
+#### Evaluation
+
+```bash
+# Evaluate model quality
+python scripts/evaluate.py --checkpoint checkpoints/best.pt --dataset-path data/validation
+
+# Comprehensive model analysis
+python scripts/analyze_model.py --checkpoint checkpoints/best.pt --analysis-types architecture performance quality
+```
+
+---
+
+## 📊 Advanced Monitoring & Analysis
+
+### Real-Time Monitoring Dashboard
+
+Start the web-based monitoring dashboard for real-time system and training monitoring:
+
+```bash
+python scripts/monitoring_dashboard.py --host 0.0.0.0 --port 8080
+```
+
+Features:
+- Real-time system resource monitoring (CPU, memory, GPU)
+- Training progress tracking with loss visualization
+- Performance metrics and throughput analysis
+- Interactive charts and historical data
+- Export functionality for metrics and reports
+
+### Model Analysis Suite
+
+Comprehensive analysis of your trained models:
+
+```bash
+# Architecture analysis
+python scripts/analyze_model.py --checkpoint model.pt --analysis-types architecture
+
+# Performance benchmarking
+python scripts/analyze_model.py --checkpoint model.pt --analysis-types performance --batch-sizes 1 4 8 16
+
+# Generation quality assessment
+python scripts/analyze_model.py --checkpoint model.pt --analysis-types quality
+```
+
+### Batch Processing
+
+High-performance batch operations for large-scale tasks:
+
+```bash
+# Large-scale generation
+python scripts/batch_generate.py \
+    --checkpoint checkpoints/best.pt \
+    --num-samples 50000 \
+    --batch-size 64 \
+    --num-workers 8 \
+    --output-dir outputs/large_generation
+```
+
+---
+
+## 🚀 Production Deployment
+
+### Model Optimization
+
+Optimize your models for production deployment:
+
+```bash
+# Optimize model for production
+python scripts/deploy_optimize.py \
+    --checkpoint checkpoints/best.pt \
+    --optimize-for production \
+    --export-formats onnx tensorrt
+```
+
+### Inference Server
+
+Deploy a high-performance inference server:
+
+```bash
+# Start inference server
+python scripts/deploy_server.py \
+    --config configs/server_config.json \
+    --model-path models/optimized.onnx \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --workers 4
+```
+
+### Full Deployment Automation
+
+Complete deployment with monitoring and scaling:
+
+```bash
+# Full production deployment
+python scripts/deploy_full.py \
+    --environment production \
+    --config configs/deployment_config.yaml \
+    --auto-scale \
+    --monitoring-enabled
+```
+
+---
+
+## 📝 Configuration
+
+### Key Configuration Files
+
+- **`configs/train_config.yaml`**: Training configuration
+- **`configs/generate_config.yaml`**: Generation settings
+- **`configs/deployment_config.yaml`**: Production deployment settings
+- **`configs/server_config.json`**: Inference server configuration
+- **`configs/monitoring_config.yaml`**: System monitoring parameters
+
+### Environment Configuration
+
+```bash
+# GPU Configuration
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+
+# Monitoring
+export AETHERIST_MONITORING_INTERVAL=5.0
+
+# Deployment
+export AETHERIST_DEPLOY_ENV=production
+```
+
+---
+
+## 📁 Project Structure
+
+```
+aetherist/
+├── 🎯 src/                    # Core source code
+│   ├── models/                # Model architectures
+│   ├── training/              # Training logic
+│   ├── data/                  # Data loading and preprocessing
+│   ├── inference/             # Inference pipeline
+│   ├── utils/                 # Utility functions
+│   ├── monitoring/            # 🆕 System monitoring
+│   ├── batch/                 # 🆕 Batch processing
+│   └── deployment/            # 🆕 Deployment tools
+├── 📜 configs/               # Configuration files
+├── 📜 scripts/               # Utility scripts
+│   ├── train.py               # Training script
+│   ├── generate.py            # Generation script
+│   ├── evaluate.py            # Evaluation script
+│   ├── monitoring_dashboard.py # 🆕 Web monitoring dashboard
+│   ├── analyze_model.py       # 🆕 Model analysis
+│   ├── batch_generate.py      # 🆕 Batch generation
+│   ├── deploy_*.py            # 🆕 Deployment scripts
+│   └── test_utilities.py      # 🆕 Testing suite
+├── 📂 data/                  # Training data
+├── 📂 checkpoints/           # Model checkpoints
+├── 📂 outputs/               # Generated outputs
+├── 📄 requirements.txt       # Dependencies
+├── 📄 README.md              # This file
+└── 📄 ADVANCED_UTILITIES.md   # 🆕 Advanced utilities documentation
+```
+
+*🆕 = New advanced utilities*
+
+---
+
+## 🔧 Testing
+
+Comprehensive testing suite for all components:
+
+```bash
+# Run all tests
+python scripts/test_utilities.py
+
+# Quick validation (skip slow tests)
+python scripts/test_utilities.py --skip-slow
+
+# Verbose output for debugging
+python scripts/test_utilities.py --verbose
+```
+
+Test categories:
+- Core functionality tests
+- System monitoring tests
+- Model analysis validation
+- Batch processing tests
+- Integration tests
+- Configuration validation
 ```
 
 ### Basic Usage
