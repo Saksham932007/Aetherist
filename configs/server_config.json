@@ -1,0 +1,14 @@
+{
+  "host": "0.0.0.0",
+  "port": 8000,
+  "workers": 1,
+  "max_batch_size": 4,
+  "max_queue_size": 100,
+  "redis_url": null,
+  "enable_auth": false,
+  "api_key": null,
+  "cors_origins": ["*"],
+  "log_level": "INFO",
+  "model_config_path": "configs/base_config.yaml",
+  "checkpoint_path": null
+}

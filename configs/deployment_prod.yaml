@@ -1,0 +1,66 @@
+# Aetherist Production Deployment Configuration
+
+# Basic deployment settings
+environment: production
+deployment_type: kubernetes
+model_config_path: configs/high_quality_config.yaml
+optimize_models: true
+
+# Model optimization settings
+optimization_config:
+  quantize: true
+  quantization_backend: fbgemm
+  export_onnx: true
+  export_torchscript: true
+  optimize_for_inference: true
+  enable_dynamic_shapes: true
+  batch_size: 4
+  image_size: [512, 512]
+
+# Server configuration
+server_config:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  max_batch_size: 8
+  max_queue_size: 200
+  log_level: INFO
+  cors_origins:
+    - "https://api.aetherist.com"
+    - "https://app.aetherist.com"
+  enable_auth: true
+  redis_url: "redis://redis-service:6379"
+
+# Docker configuration
+docker_config:
+  base_image: "pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime"
+  python_version: "3.10"
+  port: 8000
+  workers: 4
+  memory_limit: "16g"
+  cpu_limit: "8"
+  gpu_support: true
+
+# Kubernetes configuration
+kubernetes_config:
+  namespace: aetherist-prod
+  service_name: aetherist-api
+  replicas: 3
+  image_tag: v1.0.0
+  resource_requests:
+    cpu: "4"
+    memory: "8Gi"
+    nvidia.com/gpu: "1"
+  resource_limits:
+    cpu: "8"
+    memory: "16Gi"
+    nvidia.com/gpu: "1"
+  ingress_host: "api.aetherist.com"
+
+# AWS configuration
+aws_config:
+  region: us-west-2
+  instance_type: g4dn.2xlarge
+  min_capacity: 2
+  max_capacity: 10
+  target_cpu_utilization: 60

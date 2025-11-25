@@ -1,0 +1,39 @@
+# Aetherist Development Deployment Configuration
+
+# Basic deployment settings
+environment: development
+deployment_type: local
+model_config_path: configs/fast_config.yaml
+optimize_models: false
+
+# Model optimization settings (disabled for development)
+optimization_config:
+  quantize: false
+  export_onnx: false
+  export_torchscript: false
+  optimize_for_inference: false
+  batch_size: 1
+  image_size: [256, 256]
+
+# Server configuration
+server_config:
+  host: "127.0.0.1"
+  port: 8000
+  workers: 1
+  max_batch_size: 2
+  max_queue_size: 10
+  log_level: DEBUG
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://127.0.0.1:3000"
+  enable_auth: false
+
+# Docker configuration (for development containers)
+docker_config:
+  base_image: "pytorch/pytorch:2.0.1-cuda11.7-cudnn8-devel"
+  python_version: "3.10"
+  port: 8000
+  workers: 1
+  memory_limit: "4g"
+  cpu_limit: "2"
+  gpu_support: true
