@@ -19,6 +19,10 @@ kornia>=0.7.0
 opencv-python>=4.8.0
 Pillow>=10.0.0
 
+# Web interface and visualization
+gradio>=4.0.0
+tqdm>=4.65.0
+
 # Data loading and streaming
 webdataset>=0.2.0
 
