@@ -1,0 +1,171 @@
+# MIT License
+
+Copyright (c) 2024 Aetherist Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## Third-Party Licenses
+
+This project incorporates the following third-party libraries:
+
+### PyTorch
+- License: BSD-3-Clause
+- Copyright: Facebook, Inc. and its affiliates
+- URL: https://pytorch.org/
+- Used for: Deep learning framework and neural network implementation
+
+### NumPy
+- License: BSD-3-Clause  
+- Copyright: NumPy Developers
+- URL: https://numpy.org/
+- Used for: Numerical computations and array operations
+
+### Pillow (PIL)
+- License: HPND
+- Copyright: Fredrik Lundh and contributors
+- URL: https://pillow.readthedocs.io/
+- Used for: Image processing and manipulation
+
+### OpenCV
+- License: Apache-2.0
+- Copyright: Intel Corporation, Willow Garage, Itseez
+- URL: https://opencv.org/
+- Used for: Computer vision operations
+
+### FastAPI
+- License: MIT
+- Copyright: Sebastián Ramírez
+- URL: https://fastapi.tiangolo.com/
+- Used for: REST API implementation
+
+### Uvicorn
+- License: BSD-3-Clause
+- Copyright: Tom Christie
+- URL: https://www.uvicorn.org/
+- Used for: ASGI server implementation
+
+### Gradio
+- License: Apache-2.0
+- Copyright: Gradio, Inc.
+- URL: https://gradio.app/
+- Used for: Web interface creation
+
+### TensorBoard
+- License: Apache-2.0
+- Copyright: TensorFlow Authors
+- URL: https://tensorflow.org/tensorboard
+- Used for: Training visualization and monitoring
+
+### Matplotlib
+- License: PSF (Python Software Foundation License)
+- Copyright: John D. Hunter, Darren Dale, Eric Firing, Michael Droettboom and the matplotlib development team
+- URL: https://matplotlib.org/
+- Used for: Data visualization and plotting
+
+### TQDM
+- License: MPL-2.0
+- Copyright: tqdm developers
+- URL: https://tqdm.github.io/
+- Used for: Progress bars and status indication
+
+### PyYAML
+- License: MIT
+- Copyright: Kirill Simonov
+- URL: https://pyyaml.org/
+- Used for: YAML configuration file parsing
+
+### Requests
+- License: Apache-2.0
+- Copyright: Kenneth Reitz
+- URL: https://requests.readthedocs.io/
+- Used for: HTTP request handling
+
+### Click
+- License: BSD-3-Clause
+- Copyright: Pallets
+- URL: https://click.palletsprojects.com/
+- Used for: Command-line interface implementation
+
+### Black
+- License: MIT
+- Copyright: Łukasz Langa and contributors
+- URL: https://black.readthedocs.io/
+- Used for: Code formatting (development)
+
+### pytest
+- License: MIT
+- Copyright: Holger Krekel and others
+- URL: https://pytest.org/
+- Used for: Testing framework (development)
+
+## Research Citations
+
+This project builds upon research from the following papers:
+
+### Neural Radiance Fields (NeRF)
+- Title: "NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis"
+- Authors: Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik, Jonathan T. Barron, Ravi Ramamoorthi, Ren Ng
+- Venue: ECCV 2020
+- License: CC-BY-4.0
+
+### EG3D
+- Title: "Efficient Geometry-aware 3D Generative Adversarial Networks"
+- Authors: Eric R. Chan, Connor Z. Lin, Matthew A. Chan, Koki Nagano, Boxiao Pan, Shalini De Mello, Orazio Gallo, Leonidas Guibas, Jonathan Tremblay, Sameh Khamis, Tero Karras, Gordon Wetzstein
+- Venue: CVPR 2022
+- License: NVIDIA Source Code License-NC
+
+### StyleGAN2
+- Title: "Analyzing and Improving the Image Quality of StyleGAN"
+- Authors: Tero Karras, Samuli Laine, Miika Aittala, Janne Hellsten, Jaakko Lehtinen, Timo Aila
+- Venue: CVPR 2020
+- License: NVIDIA Source Code License-NC
+
+### Triplane Representation
+- Title: "EG3D: Efficient Geometry-aware 3D Generative Adversarial Networks"
+- Contribution: Triplane representation for 3D-aware generation
+- Used under fair use for research purposes
+
+## Attribution Requirements
+
+When using this software in academic or research contexts, please cite:
+
+```bibtex
+@software{aetherist2024,
+  title={Aetherist: Advanced 3D Avatar Generation System},
+  author={Aetherist Contributors},
+  year={2024},
+  url={https://github.com/username/aetherist}
+}
+```
+
+## Commercial Use
+
+This software is licensed under the MIT License and is free for commercial use. However, please note:
+
+1. Some research papers referenced may have restrictions on commercial use
+2. Pre-trained models may have separate licensing terms
+3. Third-party libraries have their own licensing requirements
+
+Users are responsible for ensuring compliance with all applicable licenses.
+
+## Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. THE AUTHORS OR COPYRIGHT HOLDERS SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+This software is provided for research and development purposes. Users are responsible for ensuring compliance with applicable laws and regulations in their jurisdiction.
