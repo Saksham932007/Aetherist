@@ -1,0 +1,338 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aetherist
+  labels:
+    name: aetherist
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aetherist-config
+  namespace: aetherist
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  WORKERS: "2"
+  MAX_REQUESTS: "1000"
+  TIMEOUT: "120"
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aetherist-secrets
+  namespace: aetherist
+type: Opaque
+data:
+  # Base64 encoded values
+  API_KEY: "bXlfc2VjcmV0X2FwaV9rZXk="  # my_secret_api_key
+  DB_PASSWORD: "bXlfc2VjcmV0X3Bhc3N3b3Jk"  # my_secret_password
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aetherist-api
+  namespace: aetherist
+  labels:
+    app: aetherist-api
+    component: api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: aetherist-api
+  template:
+    metadata:
+      labels:
+        app: aetherist-api
+        component: api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: aetherist-api
+        image: aetherist:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: PORT
+          value: "8000"
+        envFrom:
+        - configMapRef:
+            name: aetherist-config
+        - secretRef:
+            name: aetherist-secrets
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 2
+        volumeMounts:
+        - name: models-volume
+          mountPath: /app/models
+          readOnly: true
+        - name: outputs-volume
+          mountPath: /app/outputs
+        - name: logs-volume
+          mountPath: /app/logs
+      volumes:
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: aetherist-models-pvc
+      - name: outputs-volume
+        persistentVolumeClaim:
+          claimName: aetherist-outputs-pvc
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: aetherist-logs-pvc
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - aetherist-api
+              topologyKey: kubernetes.io/hostname
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aetherist-worker
+  namespace: aetherist
+  labels:
+    app: aetherist-worker
+    component: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aetherist-worker
+  template:
+    metadata:
+      labels:
+        app: aetherist-worker
+        component: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: aetherist-worker
+        image: aetherist:latest
+        imagePullPolicy: Always
+        command: ["python", "scripts/worker.py"]
+        env:
+        - name: WORKER_TYPE
+          value: "gpu"
+        envFrom:
+        - configMapRef:
+            name: aetherist-config
+        - secretRef:
+            name: aetherist-secrets
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+            nvidia.com/gpu: 1
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+            nvidia.com/gpu: 1
+        volumeMounts:
+        - name: models-volume
+          mountPath: /app/models
+          readOnly: true
+        - name: outputs-volume
+          mountPath: /app/outputs
+        - name: logs-volume
+          mountPath: /app/logs
+      volumes:
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: aetherist-models-pvc
+      - name: outputs-volume
+        persistentVolumeClaim:
+          claimName: aetherist-outputs-pvc
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: aetherist-logs-pvc
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: aetherist-api-service
+  namespace: aetherist
+  labels:
+    app: aetherist-api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: aetherist-api
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aetherist-ingress
+  namespace: aetherist
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - api.aetherist.example.com
+    secretName: aetherist-tls
+  rules:
+  - host: api.aetherist.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: aetherist-api-service
+            port:
+              number: 80
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aetherist-models-pvc
+  namespace: aetherist
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aetherist-outputs-pvc
+  namespace: aetherist
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aetherist-logs-pvc
+  namespace: aetherist
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+
+---
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: aetherist-api-hpa
+  namespace: aetherist
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aetherist-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
