@@ -1,0 +1,144 @@
+# Aetherist Docker Compose Configuration for Development
+# Development environment with hot reload and debugging support
+
+version: '3.8'
+
+services:
+  # Development API service with hot reload
+  aetherist-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    image: aetherist:dev
+    container_name: aetherist-dev
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # Debugger port
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=debug
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - REDIS_URL=redis://redis-dev:6379/0
+      - DATABASE_URL=postgresql://aetherist:dev_password@postgres-dev:5432/aetherist_dev
+      - RELOAD=true
+      - DEBUG=true
+    volumes:
+      - .:/app:rw  # Mount source code for hot reload
+      - ./models:/app/models:ro
+      - dev_logs:/app/logs
+    depends_on:
+      - redis-dev
+      - postgres-dev
+    restart: unless-stopped
+    networks:
+      - aetherist-dev-network
+
+  # Redis for development
+  redis-dev:
+    image: redis:7-alpine
+    container_name: aetherist-redis-dev
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_dev_data:/data
+    restart: unless-stopped
+    networks:
+      - aetherist-dev-network
+
+  # PostgreSQL for development
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: aetherist-postgres-dev
+    environment:
+      - POSTGRES_DB=aetherist_dev
+      - POSTGRES_USER=aetherist
+      - POSTGRES_PASSWORD=dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - aetherist-dev-network
+
+  # Gradio development interface
+  aetherist-web-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.gradio
+      target: development
+    image: aetherist-web:dev
+    container_name: aetherist-web-dev
+    ports:
+      - "7861:7860"
+    environment:
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - GRADIO_SERVER_PORT=7860
+      - API_URL=http://aetherist-dev:8000
+      - RELOAD=true
+    volumes:
+      - .:/app:rw
+      - ./models:/app/models:ro
+      - dev_uploads:/app/uploads
+    depends_on:
+      - aetherist-dev
+    restart: unless-stopped
+    networks:
+      - aetherist-dev-network
+
+  # Jupyter notebook for development and experimentation
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile.jupyter
+    image: aetherist-jupyter:latest
+    container_name: aetherist-jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=aetherist-dev-token
+    volumes:
+      - .:/app:rw
+      - ./models:/app/models:ro
+      - ./notebooks:/app/notebooks:rw
+      - jupyter_data:/app/jupyter_data
+    restart: unless-stopped
+    networks:
+      - aetherist-dev-network
+
+  # Development file watcher for auto-restart
+  file-watcher:
+    image: node:alpine
+    container_name: aetherist-watcher
+    working_dir: /app
+    command: >
+      sh -c "
+        npm install -g nodemon &&
+        nodemon --watch /app/aetherist --watch /app/configs --ext py,yaml,json --exec 'echo File changed, restarting services...'
+      "
+    volumes:
+      - .:/app:ro
+    networks:
+      - aetherist-dev-network
+
+volumes:
+  redis_dev_data:
+    driver: local
+  postgres_dev_data:
+    driver: local
+  dev_logs:
+    driver: local
+  dev_uploads:
+    driver: local
+  jupyter_data:
+    driver: local
+
+networks:
+  aetherist-dev-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

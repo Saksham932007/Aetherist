@@ -1,0 +1,59 @@
+# Jupyter Development Environment Dockerfile
+# For research and experimentation
+
+FROM jupyter/scipy-notebook:python-3.9
+
+# Switch to root to install system packages
+USER root
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    ffmpeg \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# Switch back to jupyter user
+USER $NB_UID
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt requirements-dev.txt ./
+
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip install -r requirements-dev.txt
+
+# Install additional Jupyter extensions
+RUN pip install \
+    jupyterlab-git \
+    jupyterlab-lsp \
+    python-lsp-server \
+    ipywidgets \
+    plotly \
+    kaleido
+
+# Install PyTorch
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# Copy source code
+COPY --chown=$NB_UID:$NB_GID . .
+
+# Install package in editable mode
+RUN pip install -e .
+
+# Create notebooks directory
+RUN mkdir -p notebooks
+
+# Set up Jupyter Lab configuration
+RUN jupyter lab build
+
+EXPOSE 8888
+
+CMD ["start-notebook.sh", "--NotebookApp.token='aetherist-dev-token'", "--NotebookApp.allow_root=True"]

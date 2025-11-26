@@ -1,0 +1,88 @@
+# Gradio Web Interface Dockerfile
+# Optimized for interactive web demos
+
+FROM python:3.9-slim as base
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    ffmpeg \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# ================================
+# Development Stage
+# ================================
+FROM base as development
+
+# Install development dependencies
+RUN apt-get update && apt-get install -y \
+    vim \
+    nano \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt requirements-gradio.txt ./
+
+# Install dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip install -r requirements-gradio.txt
+
+# Copy source code
+COPY . .
+
+# Install package in editable mode
+RUN pip install -e .
+
+# Create directories
+RUN mkdir -p uploads logs
+
+EXPOSE 7860
+
+CMD ["python", "aetherist/web/gradio_app.py", "--dev"]
+
+# ================================
+# Production Stage  
+# ================================
+FROM base as production
+
+# Copy requirements
+COPY requirements.txt requirements-gradio.txt ./
+
+# Install dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip install -r requirements-gradio.txt
+
+# Copy application
+COPY . .
+
+# Install package
+RUN pip install .
+
+# Create non-root user
+RUN groupadd -r aetherist && useradd -r -g aetherist aetherist
+
+# Create directories and set permissions
+RUN mkdir -p uploads logs && \
+    chown -R aetherist:aetherist /app
+
+USER aetherist
+
+EXPOSE 7860
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD curl -f http://localhost:7860 || exit 1
+
+CMD ["python", "aetherist/web/gradio_app.py"]
